@@ -1,9 +1,7 @@
-import base64
-
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
-from app.services.openai_service import edit_image
+from app.services.stability_service import edit_image
 
 
 router = APIRouter(
@@ -24,24 +22,28 @@ async def edit_image_endpoint(
     image: UploadFile = File(...),
     prompt: str = Form(...),
 ):
+    # Kiểm tra loại ảnh
     if image.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
             detail="Chỉ hỗ trợ JPG, PNG hoặc WebP.",
         )
 
+    # Kiểm tra prompt
     if not prompt.strip():
         raise HTTPException(
             status_code=400,
             detail="Prompt không được để trống.",
         )
 
-    if len(prompt) > 32000:
+    # Giới hạn prompt
+    if len(prompt) > 10000:
         raise HTTPException(
             status_code=400,
             detail="Prompt quá dài.",
         )
 
+    # Đọc ảnh
     image_bytes = await image.read()
 
     if not image_bytes:
@@ -51,27 +53,19 @@ async def edit_image_endpoint(
         )
 
     try:
-        result = edit_image(
+        output_bytes = edit_image(
             image_bytes=image_bytes,
             filename=image.filename or "image.png",
             prompt=prompt,
         )
 
-        image_data = result.data[0].b64_json
-
-        if not image_data:
-            raise HTTPException(
-                status_code=500,
-                detail="OpenAI không trả về ảnh.",
-            )
-
-        output_bytes = base64.b64decode(image_data)
-
         return Response(
             content=output_bytes,
             media_type="image/png",
             headers={
-                "Content-Disposition": "inline; filename=edited-image.png"
+                "Content-Disposition": (
+                    "inline; filename=edited-image.png"
+                )
             },
         )
 

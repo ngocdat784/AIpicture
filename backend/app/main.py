@@ -6,7 +6,7 @@ from app.routes.image import router as image_router
 
 app = FastAPI(
     title="AIPicture API",
-    description="AI Image Editing API powered by OpenAI",
+    description="AI Image Editing API powered by Stability AI",
     version="1.0.0",
 )
 
