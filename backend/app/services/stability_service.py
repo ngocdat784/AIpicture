@@ -11,8 +11,9 @@ STABILITY_API_URL = (
 def edit_image(
     image_bytes: bytes,
     filename: str,
+    search_prompt: str,
     prompt: str,
-):
+) -> bytes:
     files = {
         "image": (
             filename,
@@ -22,8 +23,8 @@ def edit_image(
     }
 
     data = {
+        "search_prompt": search_prompt,
         "prompt": prompt,
-        "search_prompt": "the object or area to modify",
         "output_format": "png",
     }
 
@@ -43,10 +44,7 @@ def edit_image(
     if response.status_code != 200:
         try:
             error_data = response.json()
-            error_message = error_data.get(
-                "message",
-                "Unknown Stability AI error",
-            )
+            error_message = str(error_data)
         except Exception:
             error_message = response.text
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from app.services.prompt_optimizer import optimize_prompt
 from app.services.stability_service import edit_image
 
 
@@ -20,6 +21,7 @@ ALLOWED_TYPES = {
 @router.post("/edit")
 async def edit_image_endpoint(
     image: UploadFile = File(...),
+    search_prompt: str = Form(...),
     prompt: str = Form(...),
 ):
     # Kiểm tra loại ảnh
@@ -29,6 +31,13 @@ async def edit_image_endpoint(
             detail="Chỉ hỗ trợ JPG, PNG hoặc WebP.",
         )
 
+    # Kiểm tra search prompt
+    if not search_prompt.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Đối tượng cần chỉnh sửa không được để trống.",
+        )
+
     # Kiểm tra prompt
     if not prompt.strip():
         raise HTTPException(
@@ -36,7 +45,13 @@ async def edit_image_endpoint(
             detail="Prompt không được để trống.",
         )
 
-    # Giới hạn prompt
+    # Giới hạn độ dài
+    if len(search_prompt) > 1000:
+        raise HTTPException(
+            status_code=400,
+            detail="Search prompt quá dài.",
+        )
+
     if len(prompt) > 10000:
         raise HTTPException(
             status_code=400,
@@ -53,10 +68,24 @@ async def edit_image_endpoint(
         )
 
     try:
+        # ==============================
+        # STEP 1: Optimize prompt
+        # ==============================
+
+        optimized = optimize_prompt(
+            search_prompt=search_prompt,
+            prompt=prompt,
+        )
+
+        # ==============================
+        # STEP 2: Stability AI
+        # ==============================
+
         output_bytes = edit_image(
             image_bytes=image_bytes,
             filename=image.filename or "image.png",
-            prompt=prompt,
+            search_prompt=optimized.search_prompt,
+            prompt=optimized.prompt,
         )
 
         return Response(
